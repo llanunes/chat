@@ -4,8 +4,8 @@ const bcrypt = require("bcryptjs");
 
 module.exports.login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
     if (!user)
       return res.json({ msg: "Nome e/ou senha incorretos", status: false });
     const isPasswordValid = await bcrypt.compare(password, user.password);
