@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { Buffer } from "buffer";
 import loader from "../assets/loader.gif";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import { setAvatarRoute } from "../utils/APIRoutes";
+import mysql from "mysql";
 
 export default function SetAvatar() {
-  const api = `https://api.multiavatar.com/4645646`;
+  const api = `https://api.multiavatar.com/`;
   const navigate = useNavigate();
   const [avatars, setAvatars] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +20,7 @@ export default function SetAvatar() {
     theme: "dark",
   };
 
-  useEffect(async () => {
+  useEffect(() => {
     if (!localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)) {
       navigate("/login");
     }
@@ -29,51 +28,52 @@ export default function SetAvatar() {
 
   const setProfilePicture = async () => {
     if (selectedAvatar === undefined) {
-      toast.error("Por favor escolha um avatar", toastOptions);
+      toast.error("Por favor, escolha um avatar", toastOptions);
     } else {
-      const user = await JSON.parse(
-        localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-      );
+      const user = JSON.parse(localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY));
 
-      const response = await fetch(`${setAvatarRoute}/${user._id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: avatars[selectedAvatar] }),
+      // Conecte-se ao banco de dados MySQL
+      const connection = mysql.createConnection({
+        host: 'zero-waste.mysql.database.azure.com',
+        user: 'zerowaste',
+        password: '@amell2023',
+        database: 'db_zerowaste',
       });
 
-      const { isSet, image } = await response.json();
+      // Execute uma consulta para obter a foto do usuário
+      const query = `SELECT foto FROM tbl_usuario_teste WHERE id = '${tbl_usuario_teste._id}';`; // Substitua "users" pelo nome da tabela onde as informações dos usuários estão armazenadas
 
-      if (isSet) {
-        user.isAvatarImageSet = true;
-        user.avatarImage = image;
-        localStorage.setItem(
-          process.env.REACT_APP_LOCALHOST_KEY,
-          JSON.stringify(user)
-        );
-        navigate("/");
-      } else {
-        toast.error(
-          "Erro ao configurar o avatar. Por favor tente novamente.",
-          toastOptions
-        );
-      }
+      connection.query(query, (error, results) => {
+        if (error) {
+          toast.error("Erro ao configurar o avatar. Por favor, tente novamente.", toastOptions);
+        } else {
+          const foto = results[0].foto; // Supondo que a coluna da foto seja chamada de "photo", ajuste o nome da coluna conforme necessário
+
+          user.isAvatarImageSet = true;
+          user.avatarImage = foto;
+          localStorage.setItem(process.env.REACT_APP_LOCALHOST_KEY, JSON.stringify(user));
+          navigate("/");
+        }
+
+        connection.end(); // Encerre a conexão com o banco de dados
+      });
     }
   };
 
-  useEffect(async () => {
-    const data = [];
-    for (let i = 0; i < 4; i++) {
-      const response = await fetch(
-        `${api}/${Math.round(Math.random() * 1000)}`
-      );
-      const image = await response.arrayBuffer();
-      const buffer = new Buffer(image);
-      data.push(buffer.toString("base64"));
-    }
-    setAvatars(data);
-    setIsLoading(false);
-  }, []);
+  useEffect(() => {
+    const fetchAvatars = async () => {
+      const data = [];
+      for (let i = 0; i < 6; i++) {
+        const response = await fetch(`${api}${Math.round(Math.random() * 1000)}`);
+        const svg = await response.text();
+        data.push(svg);
+      }
+      setAvatars(data);
+      setIsLoading(false);
+    };
 
+    fetchAvatars();
+  }, []);
   return (
     <>
       {isLoading ? (
@@ -89,12 +89,11 @@ export default function SetAvatar() {
             {avatars.map((avatar, index) => {
               return (
                 <div
-                  className={`avatar ${selectedAvatar === index ? "selected" : ""
-                    }`}
+                  className={`avatar ${selectedAvatar === index ? "selected" : ""}`}
                   key={index}
                 >
                   <img
-                    src={`data:image/svg+xml;base64,${avatar}`}
+                    src={`data:image/svg+xml;base64,${btoa(avatar)}`}
                     alt="avatar"
                     onClick={() => setSelectedAvatar(index)}
                   />
@@ -111,6 +110,7 @@ export default function SetAvatar() {
     </>
   );
 }
+
 
 const Container = styled.div`
   display: flex;
